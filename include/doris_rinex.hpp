@@ -1,6 +1,11 @@
 #ifndef __DSO_DORIS_RINEX_V3_HPP__
 #define __DSO_DORIS_RINEX_V3_HPP__
 
+#include "obstypes.hpp"
+#include "doris_rinex_details.hpp"
+#include <fstream>
+#include <vector>
+
 namespace dso {
 
 /** @class DorisObsRinex
@@ -8,7 +13,7 @@ namespace dso {
  *  @see RINEX DORIS 3.0 (Issue 1.7),
  *       ftp://ftp.ids-doris.org/pub/ids/data/RINEX_DORIS.pdf
  */
-class DorisRinex {
+class DorisObsRinex {
 public:
   /* Let's not write this more than once. */
   typedef std::ifstream::pos_type pos_type;
@@ -83,16 +88,36 @@ private:
   bool rcv_clock_offs_appl{false};
   
   /* List of stations/beacons recorded in file */
-  std::vector<BeaconStation> m_stations;
+  std::vector<doris_rnx::Beacon> m_stations;
   
   /* List of time-reference stations in file (also included in m_stations) */
-  std::vector<TimeReferenceStation> m_ref_stations;
+  std::vector<doris_rnx::TimeReferenceStation> m_ref_stations;
   
   /* Mark the 'END OF HEADER' field (next line is record line) */
   pos_type m_end_of_head;
   
   /* Record lines for each beacon (in data record blocks) */
   int m_lines_per_beacon;
+
+  /** Depending on the number of observables, compute the number of lines 
+   * needed to hold a full data record. Each data line can hold up to 5
+   * observable values.
+   */
+  int lines_per_beacon() const noexcept {
+    const int obs = m_obs_codes.size();
+    return 1 + (!(obs % 5) ? (obs / 5 - 1) : (obs / 5));
+  }
+
+  /**/
+  int read_header() noexcept;
+  
+  char *satellite_name() noexcept {return m_char_pool + m_satellite_name_at;}
+  char *cospar_number()  noexcept {return m_char_pool + m_cospar_number_at;}
+  char *rec_chain()      noexcept {return m_char_pool + m_rec_chain_at;}
+  char *rec_type()       noexcept {return m_char_pool + m_rec_type_at;}
+  char *rec_version()    noexcept {return m_char_pool + m_rec_version_at;}
+  char *antenna_type()   noexcept {return m_char_pool + m_antenna_type_at;}
+  char *antenna_number() noexcept {return m_char_pool + m_antenna_number_at;}
   
 public:
   const char *satellite_name() const noexcept {return m_char_pool + m_satellite_name_at;}
@@ -102,6 +127,81 @@ public:
   const char *rec_version() const noexcept {return m_char_pool + m_rec_version_at;}
   const char *antenna_type() const noexcept {return m_char_pool + m_antenna_type_at;}
   const char *antenna_number() const noexcept {return m_char_pool + m_antenna_number_at;}
+
+  /* @brief Constructor from filename 
+   *
+   * The c'tor will open the and call read_header(), which will parse through 
+   * the RINEXE's header all get all info.
+   * If it fails, an exception will be thrown.
+   */
+  explicit DorisObsRinex(const char *);
+
+  /* @brief Destructor */
+  ~DorisObsRinex() noexcept; // = default;
+
+  /* @brief Copy not allowed ! */
+  DorisObsRinex(const DorisObsRinex &) = delete;
+
+  /* @brief Assignment not allowed ! */
+  DorisObsRinex &operator=(const DorisObsRinex &) = delete;
+
+  /* @brief Move Constructor. */
+  DorisObsRinex(DorisObsRinex &&a) noexcept(
+      std::is_nothrow_move_constructible<std::ifstream>::value) = default;
+
+  /* @brief Move assignment operator. */
+  DorisObsRinex &operator=(DorisObsRinex &&a) noexcept(
+      std::is_nothrow_move_assignable<std::ifstream>::value) = default;
+
+  struct iterator {
+        using value_type = doris_rnx::DataBlock;
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::input_iterator_tag;
+        using pointer = const doris_rnx::DataBlock*;
+        using reference = const doris_rnx::DataBlock&;
+
+        iterator() = default; /* end iterator */
+        explicit iterator(std::shared_ptr<std::ifstream> in)
+            : in_(std::move(in)) { ++(*this); }  // prime first record
+
+        reference operator*()  const { return *current_; }
+        pointer   operator->() const { return &*current_; }
+
+        // pre-increment: read next record
+        iterator& operator++() {
+            current_.reset();
+            if (!in_) return *this;
+
+            std::string line;
+            while (std::getline(*in_, line)) {
+                if (line.empty()) continue; // skip blanks
+                current_ = parse_line(line);
+                break;
+            }
+            if (!current_) in_.reset(); // reached EOF -> become end()
+            return *this;
+        }
+
+        iterator operator++(int) { auto tmp = *this; ++(*this); return tmp; }
+
+        // Equality only guaranteed vs end() for input iterators.
+        friend bool operator==(const iterator& a, const iterator& b) {
+            // Both end if both have no stream.
+            return (!a.in_ && !b.in_);
+        }
+
+        friend bool operator!=(const iterator& a, const iterator& b) {
+            return !(a == b);
+        }
+
+    private:
+        static doris_rnx::Block parse_line(const char *line) {
+            return Block{ parse_datetime(datetime), std::move(obs) };
+        }
+
+        std::ifstream *m_in;
+        doris_rnx::DataBlock m_current;
+    };
 }; /* class DorisRinex */
 
 } /* namespace dso */

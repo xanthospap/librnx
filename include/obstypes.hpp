@@ -1,11 +1,9 @@
 #ifndef __DSO_SPACE_GEODESY_OBSERVATION_TYPES_HPP__
 #define __DSO_SPACE_GEODESY_OBSERVATION_TYPES_HPP__
 
-#include <cstdint>
-
 namespace dso {
 
-/** @enum ObservationType
+/** @enum DorisObservationType
  *  DORIS Observation Types as defined in RINEX DORIS 3.0 (Issue 1.7)
  */
 enum class DorisObservationType : char {
@@ -20,14 +18,39 @@ enum class DorisObservationType : char {
   ground_humidity,    ///< H ground humidity at the station, unit percent
 }; /* enum ObservationType */
 
-/** @brief Translate an ObservationType to a character.
- *  @param[in] obs An ObservationType to translate to char
+/** @brief Translate a DorisObservationType to a character.
+ *  
+ *  @param[in] obs A DorisObservationType to translate to char
+ *  @return A character that corresposnds to the given DorisObservationType.
+ *
  *  @throw std::runtime_error if no corresponding char is found for the given
  *         ObservationType.
  */
-char DorisObservationType_to_char(DorisObservationType o);
+char dobstype_to_char(DorisObservationType o);
 
-DorisObservationType char_to_observationType(char c);
+/** @brief Translate a character to a DorisObservationType.
+ * 
+ * @param[in] c A char corresponging to a DorisObservationType
+ * @return A DorisObservationType that corresponds to the given character.
+ *
+ * @throw std::runtime_error if no corresponding DorisObservationType is 
+ *        found for the given char.
+ */
+DorisObservationType char_to_dobstype(char c);
+
+/** @bried Check if a DorisObservationType goes with a frequuency. 
+ *
+ * The function will check the type DorisObservationType instance, to see if
+ * frequency information is needed for this DorisObservationType. That is,
+ * it will return true if type is any of:
+ *  * DorisObservationType::phase, or
+ *  * DorisObservationType::pseudorange, or
+ *  * DorisObservationType::power_level
+ *
+ * @param[in] type The DorisObservationType considered
+ * @return True if type is frequency-dependent, False otherwise.
+ */
+bool dobstype_has_frequency(DorisObservationType type) noexcept;
 
 /** @brief Observation Code as defined in RINEX DORIS 3.0 (Issue 1.7)
  *
@@ -49,17 +72,19 @@ DorisObservationType char_to_observationType(char c);
  */
 struct DorisObservationCode {
   DorisObservationType m_type;
-  char m_freq{0};
+  signed char m_freq{0};
 
   /** @brief Constructor; may throw if the frequency is not valid.
+   *
    *  @param[in] type The Observation Type
    *  @param[in] freq The corresponding frequency (if any)
-   *  @throw std::runtime_error if the passed-in frequency is not valid.
+   * 
+   * @throw std::runtime_error if the passed-in frequency is not valid.
    */
-  DorisObservationCode(DorisObservationType type, int freq = 0);
+  explicit DorisObservationCode(DorisObservationType type, int freq = 0);
 
   /* @brief get the ObservationType */
-  auto type() const noexcept { return m_type; }
+  auto dobstype() const noexcept { return m_type; }
 
   /* @brief Equality comparisson; checks both ObservationType and frequency. */
   bool operator==(const DorisObservationCode &oc) const noexcept {
@@ -72,9 +97,10 @@ struct DorisObservationCode {
   }
 
   /* @brief Check if the ObservationCode has a corresponding frequency */
-  bool has_frequency() const noexcept;
+  bool has_frequency() const noexcept {return dobstype_has_frequency(m_type);}
 
   /** @brief Format to string (string length=2+null terminating char)
+   *
    *  @param[in] buffer A char array of length >= 3 chars
    *  @return a pointer to the (formatted) buffer string
    */
