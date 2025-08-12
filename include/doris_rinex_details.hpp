@@ -21,6 +21,13 @@ static constexpr double RECEIVER_CLOCK_OFFSET_MISSING =
 static constexpr double OBSERVATION_VALUE_MISSING =
     std::numeric_limits<double>::min();
 
+/** Maximum number of observations that can be recorded in a single (block) 
+ * data line (per beacon). Hence, e.g. if a RINEX holds 13 observation types, 
+ * we will need 3 lines per beacon, in every data block, to hold the 
+ * observations (for a given beacon at a given epoch).
+ */
+static constexpr int MAX_OBS_PER_DATA_LINE = 5;
+
 /* @brief A station (aka beacon) as defined in RINEX DORIS 3.0 (Issue 1.7) */
 struct Beacon {
 
@@ -152,7 +159,7 @@ struct RinexDataRecordHeader {
    * Apply the correction (if any) and return the corrected time stamp. Note
    * that the actual instance's m_epoch is left as is.
    */
-  Datetime<dso::nanoseconds> apply_clock_offset() const noexcept {
+  Datetime<dso::nanoseconds> corrected_epoch() const noexcept {
     dso::nanoseconds dt =
         (m_clock_offset == RECEIVER_CLOCK_OFFSET_MISSING)
             ? dso::nanoseconds(0)
@@ -172,10 +179,11 @@ struct RinexObservationValue {
 }; /* struct RinexObservationValue */
 
 struct BeaconObservations {
-  /* the observations made from the beacon at a selected epoch */
-  std::vector<RinexObservationValue> m_values;
   /* internal beacon id (refernced in RINEX) */
   char m_beacon_id[4] = {'\0'};
+  
+  /* the observations made from the beacon at a selected epoch */
+  std::vector<RinexObservationValue> m_values;
 
   explicit BeaconObservations(int size_hint = 10) noexcept {
     m_values.reserve(size_hint);

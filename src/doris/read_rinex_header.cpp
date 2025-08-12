@@ -2,7 +2,6 @@
 #include <cstring>
 #include <algorithm>
 #include <charconv>
-#include <datetime/core/datetime_io_core.hpp>
 #include "datetime/datetime_read.hpp"
 
 namespace {
@@ -302,7 +301,7 @@ int dso::DorisObsRinex::read_header() noexcept {
        * already in the m_stations vector (err. code 190)
        */
       dso::doris_rnx::TimeReferenceStation refsta;
-      std::memcpy(refsta.m_station_code, line, sizeof refsta.m_station_code);
+      std::memcpy(refsta.m_station_code, line, sizeof(refsta.m_station_code) - 1);
       cres = std::from_chars(skipws(line + 5), line + 60, refsta.m_bias);
       if (cres.ec != std::errc{}) {
         error = 191;
@@ -318,8 +317,10 @@ int dso::DorisObsRinex::read_header() noexcept {
                                    return !std::strcmp(
                                        s.code(), refsta.code());
                                  });
-          it == m_stations.cend())
+          it == m_stations.cend()) {
         error = 193;
+        fprintf(stderr, "[ERROR] Failed matching 'TIME REF STATION' %s to list of beacons! (traceback: %s)\n", refsta.code(), __func__);
+      }
       m_ref_stations.emplace_back(refsta);
 
     } else if (!std::strncmp(line + 60, "TIME REF STAT DATE",

@@ -3,5 +3,7 @@ target_sources(rnx
     ${CMAKE_SOURCE_DIR}/src/doris/beacon_from_rinex_line.cpp
     ${CMAKE_SOURCE_DIR}/src/doris/observationtype.cpp
     ${CMAKE_SOURCE_DIR}/src/doris/read_rinex_header.cpp
+    ${CMAKE_SOURCE_DIR}/src/doris/read_next_data_block.cpp
     ${CMAKE_SOURCE_DIR}/src/doris/doris_rinex.cpp
+    ${CMAKE_SOURCE_DIR}/src/doris/doris_rinex_iterator.cpp
 )

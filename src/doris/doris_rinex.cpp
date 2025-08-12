@@ -28,8 +28,6 @@ dso::DorisObsRinex::DorisObsRinex(const char *fn)
   } catch (std::exception &) {
     fprintf(stderr, "[ERROR] Failed creating DorisObsRinex instance\n");
   }
-
-  m_lines_per_beacon = lines_per_beacon();
 }
 
 dso::DorisObsRinex::~DorisObsRinex() noexcept = default;

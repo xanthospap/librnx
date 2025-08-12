@@ -57,10 +57,11 @@ PRIVATE
 add_subdirectory(src/doris)
 
 # The tests
-#if(BUILD_TESTING)
-#  include(CTest)
-#  enable_testing()
-#endif()
+if(BUILD_TESTING)
+  include(CTest)
+  add_subdirectory(test)
+  enable_testing()
+endif()
 
 # install library
 install(TARGETS rnx
